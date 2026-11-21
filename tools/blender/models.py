@@ -65,53 +65,61 @@ def ring_section(z, rx, ry, sides=10):
 
 def sword():
     reset()
-    steel = (0.09, 0.1, 0.14, 1)
-    silver = (0.75, 0.78, 0.84, 1)
-    pale = (0.77, 0.89, 1.0, 1)
+    steel = (0.07, 0.08, 0.12, 1)
+    silver = (0.8, 0.83, 0.9, 1)
+    pale = (0.72, 0.87, 1.0, 1)
     blade_sections = [
-        diamond(-0.62, 0.30, 0.10),
-        diamond(-0.9, 0.46, 0.12),
-        diamond(-1.6, 0.42, 0.11),
-        diamond(-3.4, 0.36, 0.09),
-        diamond(-4.7, 0.28, 0.07),
-        diamond(-5.3, 0.14, 0.05),
-        diamond(-5.75, 0.01, 0.01),
+        diamond(-0.7, 0.34, 0.11),
+        diamond(-1.0, 0.56, 0.13),
+        diamond(-1.5, 0.44, 0.12),
+        diamond(-3.6, 0.40, 0.10),
+        diamond(-5.0, 0.36, 0.08),
+        diamond(-5.6, 0.22, 0.06),
+        diamond(-6.3, 0.01, 0.01),
     ]
-    loft("Blade", blade_sections, pale, 2.5)
-    edge_sections = [
-        diamond(-0.95, 0.10, 0.15),
-        diamond(-3.4, 0.08, 0.12),
-        diamond(-5.0, 0.04, 0.08),
-        diamond(-5.5, 0.005, 0.02),
-    ]
-    loft("Core", edge_sections, (1, 1, 1, 1), 5)
-    grip_sections = [ring_section(z, r, r * 0.8) for z, r in [(0.75, 0.13), (0.4, 0.15), (0.0, 0.13), (-0.4, 0.15), (-0.55, 0.17)]]
+    loft("Blade", blade_sections, silver)
+    fuller = [diamond(z, w, t) for z, w, t in [(-1.05, 0.02, 0.15), (-1.3, 0.12, 0.16), (-3.6, 0.1, 0.13), (-5.2, 0.05, 0.1), (-5.7, 0.005, 0.07)]]
+    loft("Core", fuller, pale, 6)
+    grip_sections = [ring_section(z, r, r * 0.82, 12) for z, r in [(0.8, 0.12), (0.5, 0.15), (0.1, 0.13), (-0.3, 0.15), (-0.6, 0.18)]]
     loft("Grip", grip_sections, steel)
-    pommel_sections = [ring_section(z, r, r) for z, r in [(1.12, 0.02), (1.02, 0.17), (0.88, 0.22), (0.76, 0.14)]]
-    loft("Pommel", pommel_sections, silver)
-    guard_verts = []
-    guard_faces = []
-    steps = 12
+    for index, z in enumerate((0.55, 0.2, -0.15)):
+        loft("Wrap%d" % index, [ring_section(z + 0.03, 0.165, 0.14, 12), ring_section(z - 0.03, 0.165, 0.14, 12)], silver)
+    guard_verts, guard_faces = [], []
+    steps = 16
     for i in range(steps + 1):
         t = i / steps * 2 - 1
-        x = t * 1.05
-        sweep = -0.34 * (abs(t) ** 1.8)
-        half = 0.13 * (1 - 0.72 * abs(t)) + 0.03
-        thick = 0.11 * (1 - 0.5 * abs(t)) + 0.02
-        z = -0.6 + sweep
+        x = t * 1.25
+        rise = 0.42 * (abs(t) ** 2.4) - 0.1 * (1 - abs(t))
+        half = 0.16 * (1 - 0.8 * abs(t)) + 0.035
+        thick = 0.12 * (1 - 0.55 * abs(t)) + 0.02
+        z = -0.72 - rise
         guard_verts += [(x, thick, z - half), (x, thick, z + half), (x, -thick, z + half), (x, -thick, z - half)]
     for i in range(steps):
         for k in range(4):
-            a = i * 4 + k
-            b = i * 4 + (k + 1) % 4
-            guard_faces.append((a, b, b + 4, a + 4))
+            a2 = i * 4 + k
+            b2 = i * 4 + (k + 1) % 4
+            guard_faces.append((a2, b2, b2 + 4, a2 + 4))
     guard_faces.append((0, 1, 2, 3))
     guard_faces.append((steps * 4 + 3, steps * 4 + 2, steps * 4 + 1, steps * 4))
     mesh_object("Guard", guard_verts, guard_faces, silver)
-    gem = loft("Gem", [diamond(-0.6, 0.02, 0.02, 0.0)] + [[(0.13, 0, -0.6), (0, 0.16, -0.6), (-0.13, 0, -0.6), (0, -0.16, -0.6)]] , pale, 4, cap=False)
-    gem_verts = [(0, 0, -0.42), (0.12, 0, -0.6), (0, 0.17, -0.6), (-0.12, 0, -0.6), (0, -0.17, -0.6), (0, 0, -0.78)]
-    bpy.data.objects.remove(gem)
-    mesh_object("Gem", gem_verts, [(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 1), (5, 2, 1), (5, 3, 2), (5, 4, 3), (5, 1, 4)], pale, 4)
+    gem_verts = [(0, 0, -0.5), (0.15, 0, -0.72), (0, 0.19, -0.72), (-0.15, 0, -0.72), (0, -0.19, -0.72), (0, 0, -0.94)]
+    mesh_object("Gem", gem_verts, [(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 1), (5, 2, 1), (5, 3, 2), (5, 4, 3), (5, 1, 4)], pale, 6)
+    torus_verts, torus_faces = [], []
+    major, minor, seg, sides = 0.2, 0.055, 14, 6
+    for i in range(seg):
+        u = i / seg * math.tau
+        for k in range(sides):
+            v = k / sides * math.tau
+            radius = major + minor * math.cos(v)
+            torus_verts.append((math.cos(u) * radius, minor * math.sin(v), 1.02 + math.sin(u) * radius))
+    for i in range(seg):
+        for k in range(sides):
+            a2 = i * sides + k
+            b2 = i * sides + (k + 1) % sides
+            c2 = ((i + 1) % seg) * sides + (k + 1) % sides
+            d2 = ((i + 1) % seg) * sides + k
+            torus_faces.append((a2, b2, c2, d2))
+    mesh_object("Pommel", torus_verts, torus_faces, silver)
 
 
 def crescent(name, radius=5.0, width=1.6, arc=150, segments=28):
@@ -163,7 +171,7 @@ if __name__ == "__main__":
     sword()
     print("sword", stats(), export("SpiritBlade"))
     if "--render" in sys.argv:
-        r6.setup_preview(target=(0, 0, -2.3), distance=9, azimuth=60, elevation=20)
+        r6.setup_preview(target=(0, 0, -2.6), distance=9.5, azimuth=75, elevation=28)
         bpy.context.scene.render.resolution_x = 640
         bpy.context.scene.render.resolution_y = 420
         bpy.context.scene.cycles.samples = 24
