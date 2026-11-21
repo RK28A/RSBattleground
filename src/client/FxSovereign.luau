@@ -100,6 +100,9 @@ local function distort(strength, duration)
 end
 
 local function eye(adornee, offset, size, life, color)
+	if Fx.EyeBuilder then
+		return Fx.EyeBuilder(adornee, offset, size, life, color)
+	end
 	color = color or VIOLET
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromScale(size, size * 0.5)

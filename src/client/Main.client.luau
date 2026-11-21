@@ -6,6 +6,7 @@ local Net = require(Shared:WaitForChild("Net"))
 local Anim = require(Shared:WaitForChild("Anim"))
 local Fx = require(script.Parent:WaitForChild("Fx"))
 require(script.Parent:WaitForChild("FxSovereign"))
+require(script.Parent:WaitForChild("FxBody")).install(Fx)
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Input = require(script.Parent:WaitForChild("Input"))
 

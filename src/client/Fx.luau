@@ -127,6 +127,10 @@ local function burst(position, count, properties)
 end
 
 local function flash(position, color, size, duration)
+	if Fx.FlashOverride then
+		Fx.FlashOverride(position, color, size, duration)
+		return
+	end
 	local core = neon(Vector3.one * size * 0.35, CFrame.new(position), WHITE, Enum.PartType.Ball)
 	tween(core, duration * 0.6, { Size = Vector3.one * size * 0.9, Transparency = 1 })
 	Debris:AddItem(core, duration)
