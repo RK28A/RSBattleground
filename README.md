@@ -17,7 +17,7 @@ Battlegrounds Roblox en R6.
 | Espace + 4e M1 | Uppercut |
 | 4e M1 en chute | Downslam |
 | F | Block |
-| Q (+ Z/Q/S/D) | Dash |
+| Q (+ W/A/S/D) | Dash |
 | 1 2 3 4 | Skills |
 | G | Ult |
 | M | Sélection du perso |
