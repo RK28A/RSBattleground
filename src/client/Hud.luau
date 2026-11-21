@@ -21,7 +21,10 @@ local Hud = {}
 
 local gui
 local healthFill, healthGhost, healthText
-local ultFill, ultLabel, ultKey
+local ultFill, ultLabel, ultKey, ultFrame, ultStroke
+local phaseRow, evasionChip, rebirthChip
+local phaseEyes = {}
+local masteredShown = false
 local slots = {}
 local roster
 local choice
@@ -65,6 +68,45 @@ local function label(properties)
 		base[key] = value
 	end
 	return make("TextLabel", base)
+end
+
+local function glyphEye(color)
+	local iris = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.4, 0.8),
+		BackgroundColor3 = color,
+		BorderSizePixel = 0,
+	}, {
+		make("UICorner", { CornerRadius = UDim.new(0.5, 0) }),
+		make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.22, 0.8),
+			BackgroundColor3 = INK,
+			BorderSizePixel = 0,
+		}, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }) }),
+	})
+	return make("Frame", {
+		Size = UDim2.fromOffset(24, 12),
+		BackgroundColor3 = INK,
+		BorderSizePixel = 0,
+		Visible = false,
+	}, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }), stroke(color, 1, 0), iris })
+end
+
+local function chip(text, order)
+	return label({
+		Size = UDim2.fromOffset(0, 16),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.25,
+		Font = HEAD,
+		TextSize = 13,
+		Text = "  " .. text .. "  ",
+		LayoutOrder = order,
+		Visible = false,
+	})
 end
 
 local function buildSlot(index)
@@ -162,14 +204,40 @@ local function buildBottom()
 		TextXAlignment = Enum.TextXAlignment.Right,
 		TextTransparency = 0.5,
 	})
-	local ult = make("Frame", {
+	evasionChip = chip("FUTURE EVASION", 2)
+	rebirthChip = chip("REBIRTH READY", 3)
+	phaseEyes[1] = glyphEye(PAPER)
+	phaseEyes[1].LayoutOrder = 1
+	phaseEyes[2] = glyphEye(PAPER)
+	phaseEyes[2].LayoutOrder = 4
+	phaseRow = make("Frame", {
+		Name = "Phase",
+		Position = UDim2.new(0, 0, 0, -38),
+		Size = UDim2.new(1, 0, 0, 16),
+		BackgroundTransparency = 1,
+	}, {
+		make("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 6),
+		}),
+		phaseEyes[1],
+		evasionChip,
+		rebirthChip,
+		phaseEyes[2],
+	})
+	ultStroke = stroke(PAPER, 1, 1)
+	ultFrame = make("Frame", {
 		Name = "Ult",
 		Position = UDim2.fromOffset(0, 6),
 		Size = UDim2.new(1, 0, 0, 6),
 		BackgroundColor3 = INK,
 		BackgroundTransparency = 0.3,
 		BorderSizePixel = 0,
-	}, { corner(2), ultFill, ultLabel, ultKey })
+	}, { corner(2), ultStroke, ultFill, ultLabel, ultKey, phaseRow })
+	local ult = ultFrame
 
 	local row = make("Frame", {
 		Name = "Skills",
@@ -388,16 +456,67 @@ local function update(dt)
 	local ghost = healthGhost.Size.X.Scale
 	healthGhost.Size = UDim2.fromScale(ghost > ratio and math.max(ratio, ghost - dt * 0.5) or ratio, 1)
 
-	local ult = math.clamp((player:GetAttribute("Ult") or 0) / Config.Ult.Max, 0, 1)
-	ultFill.Size = UDim2.fromScale(ult, 1)
-	local full = ult >= 1
-	ultKey.TextTransparency = full and 0 or 0.5
-	ultFill.BackgroundColor3 = full and PAPER:Lerp(definition.Accent, 0.5 + 0.5 * math.sin(os.clock() * 8)) or definition.Accent
-	if not full then
+	local now = workspace:GetServerTimeNow()
+	local shadow = definition.Shadow or definition.Accent
+	local wave = 0.5 + 0.5 * math.sin(os.clock() * 8)
+	if player:GetAttribute("UltMode") then
+		local starts = player:GetAttribute("UltStart") or now
+		local ends = player:GetAttribute("UltEnd") or now
+		local remaining = math.max(ends - now, 0)
+		local phase = player:GetAttribute("UltPhase")
+		local mastered = phase == "Mastered"
+		ultFill.Size = UDim2.fromScale(math.clamp(remaining / math.max(ends - starts, 1), 0, 1), 1)
+		ultFill.BackgroundColor3 = mastered and shadow:Lerp(PAPER, wave * 0.7) or shadow
+		ultKey.Text = tostring(math.ceil(remaining)) .. "s"
+		ultKey.TextTransparency = 0
+		ultLabel.TextColor3 = mastered and PAPER:Lerp(shadow, wave * 0.5) or shadow
+		if phase == "Rebirth" then
+			ultLabel.Text = "THE FUTURE CANNOT BE ERASED"
+		elseif mastered then
+			ultLabel.Text = string.upper(definition.Ult.MasteredName or definition.Ult.Name)
+		else
+			ultLabel.Text = string.upper(definition.Ult.Name)
+		end
+		if mastered ~= masteredShown then
+			masteredShown = mastered
+			TweenService:Create(ultFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back), {
+				Size = UDim2.new(1, 0, 0, mastered and 9 or 6),
+			}):Play()
+			ultStroke.Color = shadow
+			ultStroke.Transparency = mastered and 0 or 1
+		end
+		evasionChip.Visible = player:GetAttribute("UltEvasion") == true and phase ~= "Rebirth"
+		evasionChip.TextColor3 = shadow:Lerp(PAPER, 0.5)
+		rebirthChip.Visible = player:GetAttribute("UltRebirth") == true
+		rebirthChip.TextTransparency = 0.35
+		for _, glyph in phaseEyes do
+			glyph.Visible = mastered
+		end
 		choice.Visible = false
+	else
+		local ult = math.clamp((player:GetAttribute("Ult") or 0) / Config.Ult.Max, 0, 1)
+		ultFill.Size = UDim2.fromScale(ult, 1)
+		local full = ult >= 1
+		ultKey.Text = "G"
+		ultKey.TextTransparency = full and 0 or 0.5
+		ultFill.BackgroundColor3 = full and PAPER:Lerp(definition.Accent, wave) or definition.Accent
+		ultLabel.Text = string.upper(definition.Ult.Name)
+		ultLabel.TextColor3 = definition.Accent
+		if masteredShown then
+			masteredShown = false
+			ultFrame.Size = UDim2.new(1, 0, 0, 6)
+			ultStroke.Transparency = 1
+		end
+		evasionChip.Visible = false
+		rebirthChip.Visible = false
+		for _, glyph in phaseEyes do
+			glyph.Visible = false
+		end
+		if not full then
+			choice.Visible = false
+		end
 	end
 
-	local now = workspace:GetServerTimeNow()
 	local skills = currentSkills()
 	for index, slot in slots do
 		local skill = skills[index]

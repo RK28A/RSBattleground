@@ -5,6 +5,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
 local Anim = require(Shared:WaitForChild("Anim"))
 local Fx = require(script.Parent:WaitForChild("Fx"))
+require(script.Parent:WaitForChild("FxSovereign"))
 local Hud = require(script.Parent:WaitForChild("Hud"))
 local Input = require(script.Parent:WaitForChild("Input"))
 

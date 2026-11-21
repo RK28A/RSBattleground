@@ -8,6 +8,10 @@ return {
 	KeepHair = false,
 	TestArena = true,
 	TestDummies = 2,
+	TestDummyAttack = true,
+	TestDummyDamage = 8,
+	TestDummyInterval = 1.1,
+	TestUltFull = true,
 
 	M1 = {
 		Interval = 0.4,
@@ -65,5 +69,13 @@ return {
 		Block = "",
 		Dash = "",
 		Shatter = "",
+		Arrow = "",
+		BigArrow = "",
+		Counter = "",
+		AlmightyStart = "",
+		Mastered = "",
+		Evade = "",
+		Rebirth = "",
+		Explosion = "",
 	},
 }

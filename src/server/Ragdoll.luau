@@ -129,8 +129,8 @@ function Ragdoll.start(character, duration)
 	local st = State.get(character)
 	local already = character:FindFirstChild("RagdollRig") ~= nil
 	st.RagdollUntil = math.max(st.RagdollUntil, State.now() + duration)
-	st.Token += 1
 	st.Blocking = false
+	State.interrupt(character)
 	if already then
 		return
 	end

@@ -11,6 +11,8 @@ local function ownerOf(part)
 	return nil
 end
 
+Hitbox.ownerOf = ownerOf
+
 local function collect(attacker, parts)
 	local seen = {}
 	local victims = {}

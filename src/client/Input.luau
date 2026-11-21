@@ -70,6 +70,20 @@ local function impulse(root, direction, speed, duration)
 	Debris:AddItem(attachment, duration)
 end
 
+local function aimVector()
+	local character, _, root = parts()
+	if not character then
+		return nil
+	end
+	local origin = root.Position + Vector3.new(0, 0.6, 0)
+	local target = player:GetMouse().Hit.Position
+	local offset = target - origin
+	if offset.Magnitude < 4 then
+		return workspace.CurrentCamera.CFrame.LookVector
+	end
+	return offset.Unit
+end
+
 local function tryM1()
 	if blocking or not canAct() then
 		return
@@ -212,8 +226,8 @@ function Input.start(hud)
 			hud.toggleRoster()
 		elseif SKILL_KEYS[input.KeyCode] then
 			local index = SKILL_KEYS[input.KeyCode]
-			if not hud.pickUlt(index) and canAct() and not blocking then
-				Net.Skill:FireServer(index)
+			if not hud.pickUlt(index) and parts() and not blocking then
+				Net.Skill:FireServer(index, true, aimVector())
 			end
 		end
 	end)
@@ -224,6 +238,8 @@ function Input.start(hud)
 		elseif input.KeyCode == Enum.KeyCode.F then
 			holdingBlock = false
 			stopBlock()
+		elseif SKILL_KEYS[input.KeyCode] then
+			Net.Skill:FireServer(SKILL_KEYS[input.KeyCode], false, aimVector())
 		end
 	end)
 

@@ -53,26 +53,158 @@ function Combat.addUlt(character, amount)
 	player:SetAttribute("Ult", math.clamp(value, 0, Config.Ult.Max))
 end
 
+local attackCounter = 0
+
+function Combat.attackId()
+	attackCounter += 1
+	return attackCounter
+end
+
+function Combat.knock(direction, studs)
+	return direction * (studs / 0.2)
+end
+
+local damageListeners = {}
+
+function Combat.onDamaged(listener)
+	damageListeners[listener] = true
+	return function()
+		damageListeners[listener] = nil
+	end
+end
+
+function Combat.characters()
+	local list = {}
+	for _, child in workspace:GetChildren() do
+		if child:IsA("Model") and child:FindFirstChildOfClass("Humanoid") then
+			table.insert(list, child)
+		end
+	end
+	return list
+end
+
+function Combat.worldParams(extra)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local ignore = Combat.characters()
+	for _, instance in extra or {} do
+		table.insert(ignore, instance)
+	end
+	params.FilterDescendantsInstances = ignore
+	params.CollisionGroup = "Players"
+	return params
+end
+
+function Combat.lineOfSight(from, to)
+	local offset = to - from
+	if offset.Magnitude < 0.1 then
+		return true
+	end
+	return workspace:Raycast(from, offset, Combat.worldParams()) == nil
+end
+
+function Combat.standable(position)
+	local ground = workspace:Raycast(position + Vector3.new(0, 3, 0), Vector3.new(0, -14, 0), Combat.worldParams())
+	if not ground then
+		return nil
+	end
+	local stand = ground.Position + Vector3.new(0, 3, 0)
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = Combat.characters()
+	overlap.CollisionGroup = "Players"
+	for _, part in workspace:GetPartBoundsInBox(CFrame.new(stand + Vector3.new(0, 0.4, 0)), Vector3.new(2.4, 4.4, 2), overlap) do
+		if part.CanCollide then
+			return nil
+		end
+	end
+	return stand
+end
+
+function Combat.safeSpot(candidates, sightFrom, fallback)
+	for _, position in candidates do
+		local stand = Combat.standable(position)
+		if stand and (not sightFrom or Combat.lineOfSight(sightFrom, stand)) then
+			return stand
+		end
+	end
+	if fallback then
+		for _, offset in { Vector3.zero, Vector3.new(4, 0, 0), Vector3.new(-4, 0, 0), Vector3.new(0, 0, 4), Vector3.new(0, 0, -4) } do
+			local stand = Combat.standable(fallback + offset)
+			if stand then
+				return stand
+			end
+		end
+	end
+	return nil
+end
+
+function Combat.around(targetRoot, distance)
+	local cframe = targetRoot.CFrame
+	local position = cframe.Position
+	local back, right = -cframe.LookVector, cframe.RightVector
+	return {
+		position + back * distance,
+		position + (back + right).Unit * distance,
+		position + (back - right).Unit * distance,
+		position + right * distance,
+		position - right * distance,
+		position - back * distance,
+	}
+end
+
+function Combat.face(character, position)
+	local root = rootOf(character)
+	if not root then
+		return
+	end
+	local flat = Vector3.new(position.X, root.Position.Y, position.Z)
+	if (flat - root.Position).Magnitude > 0.1 then
+		character:PivotTo(CFrame.lookAt(root.Position, flat))
+	end
+end
+
 function Combat.damage(attacker, victim, params)
 	if attacker == victim or not State.alive(victim) then
 		return nil
 	end
 	local victimState = State.get(victim)
-	if victimState.IFrameUntil > State.now() then
-		return nil
-	end
+	local now = State.now()
 	local victimRoot, attackerRoot = rootOf(victim), rootOf(attacker)
 	if not victimRoot or not attackerRoot then
 		return nil
+	end
+	if State.invulnerable(victim) then
+		return "Immune"
+	end
+	params.AttackId = params.AttackId or Combat.attackId()
+
+	if not params.Direct and not params.IsCounter then
+		local counter = victimState.Counter
+		if counter and not params.Uncounterable then
+			if counter.Until > now then
+				victimState.Counter = nil
+				task.spawn(counter.Trigger, attacker, params)
+				return "Countered"
+			end
+			victimState.Counter = nil
+		end
+		if victimState.Intercept then
+			local outcome = victimState.Intercept(attacker, params)
+			if outcome then
+				return outcome
+			end
+		end
 	end
 
 	local offset = (attackerRoot.Position - victimRoot.Position) * FLAT
 	local toAttacker = offset.Magnitude > 0.05 and offset.Unit or -victimRoot.CFrame.LookVector
 	local stun = params.Stun or 0
 
-	if victimState.Blocking then
+	if victimState.Blocking and not params.Direct then
 		local facing = victimRoot.CFrame.LookVector:Dot(toAttacker) > Config.Block.FrontDot
-		if facing and not params.GuardBreak then
+		local breaks = params.GuardBreak or params.Unblockable
+		if facing and not breaks then
 			Combat.push(victim, -toAttacker * Config.Block.Pushback, 0.12)
 			Net.Fx:FireAllClients("Block", {
 				Attacker = attacker,
@@ -88,25 +220,41 @@ function Combat.damage(attacker, victim, params)
 		end
 	end
 
-	State.humanoid(victim):TakeDamage(params.Damage or 0)
+	local humanoid = State.humanoid(victim)
+	local amount = math.min(params.Damage or 0, humanoid.Health)
+	if amount >= humanoid.Health and amount > 0 and victimState.OnLethal then
+		if victimState.OnLethal(attacker, params) then
+			return "Resurrected"
+		end
+	end
+
+	victimState.LastAttacker = attacker
+	if amount > 0 then
+		humanoid.Health -= amount
+		for listener in damageListeners do
+			task.spawn(listener, victim, attacker, amount)
+		end
+	end
 	if stun > 0 then
 		State.stun(victim, stun)
 	end
 	if params.Knockback then
-		Combat.push(victim, params.Knockback, 0.18)
+		Combat.push(victim, params.Knockback, params.KnockTime or 0.18)
 	end
 	if params.Ragdoll then
 		Ragdoll.start(victim, params.Ragdoll)
-	elseif State.alive(victim) then
+	elseif State.alive(victim) and not params.Silent then
 		Combat.playAnim(victim, math.random() < 0.5 and "Hurt1" or "Hurt2")
 	end
 
-	Net.Fx:FireAllClients("Hit", {
-		Attacker = attacker,
-		Victim = victim,
-		Position = victimRoot.Position,
-		Heavy = params.Heavy == true,
-	})
+	if not params.Silent then
+		Net.Fx:FireAllClients("Hit", {
+			Attacker = attacker,
+			Victim = victim,
+			Position = victimRoot.Position,
+			Heavy = params.Heavy == true,
+		})
+	end
 	Combat.addUlt(attacker, Config.Ult.PerHitDealt)
 	Combat.addUlt(victim, Config.Ult.PerHitTaken)
 	State.refresh(victim)
@@ -120,7 +268,7 @@ local function swing(player, hint)
 	end
 	local st = State.get(character)
 	local now = State.now()
-	if st.Blocking or now < st.AttackUntil - 0.05 or now < st.ComboLockUntil - 0.05 then
+	if st.Blocking or st.Charging or now < st.BusyUntil or now < st.AttackUntil - 0.05 or now < st.ComboLockUntil - 0.05 then
 		return
 	end
 	if now - st.LastM1 > M1.ComboReset then
@@ -131,6 +279,10 @@ local function swing(player, hint)
 	st.AttackUntil = now + M1.Interval
 
 	local def = Characters.get(player:GetAttribute("Character"))
+	local index = st.Combo
+	local perHit = type(def.M1Damage) == "table"
+	local baseDamage = perHit and def.M1Damage[index] or def.M1Damage
+	local finisherDamage = perHit and def.M1Damage[4] or def.FinisherDamage
 	local variant = "Normal"
 	local clip = def.M1Set .. st.Combo
 	if st.Combo >= 4 then
@@ -163,20 +315,21 @@ local function swing(player, hint)
 		end
 		local look = root.CFrame.LookVector
 		local victims = Hitbox.box(character, root.CFrame * CFrame.new(0, 0, -M1.Offset), M1.Size)
+		local attackId = Combat.attackId()
 		for _, victim in victims do
-			local params = { Damage = def.M1Damage, Stun = M1.Stun, Knockback = look * 6 }
+			local params = { Damage = baseDamage, Stun = M1.Stun, Knockback = look * 6, AttackId = attackId }
 			if variant == "Finisher" then
-				params.Damage = def.FinisherDamage
+				params.Damage = finisherDamage
 				params.Knockback = look * M1.FinisherKnockback + Vector3.new(0, M1.FinisherLift, 0)
 				params.Ragdoll = M1.FinisherRagdoll
 				params.Heavy = true
 			elseif variant == "Uppercut" then
-				params.Damage = def.FinisherDamage
+				params.Damage = finisherDamage
 				params.Knockback = Vector3.new(0, M1.UppercutLift, 0)
 				params.Ragdoll = M1.UppercutRagdoll
 				params.Heavy = true
 			elseif variant == "Downslam" then
-				params.Damage = def.FinisherDamage
+				params.Damage = finisherDamage
 				params.Knockback = Vector3.new(0, -M1.DownslamForce, 0)
 				params.Ragdoll = M1.DownslamRagdoll
 				params.Heavy = true
@@ -201,7 +354,7 @@ local function block(player, on)
 	end
 	local st = State.get(character)
 	if on == true then
-		if st.Blocking or not State.canAct(character) or State.now() < st.AttackUntil then
+		if st.Blocking or st.Charging or not State.canAct(character) or State.now() < st.AttackUntil or State.now() < st.BusyUntil then
 			return
 		end
 		st.Blocking = true
@@ -226,7 +379,7 @@ local function dash(player, direction)
 		return
 	end
 	local st = State.get(character)
-	if st.Blocking then
+	if st.Blocking or st.Charging or State.now() < st.BusyUntil then
 		return
 	end
 	local key = (direction == "Left" or direction == "Right") and "DashSide" or "DashFront"

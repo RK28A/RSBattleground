@@ -122,8 +122,11 @@ function Avatar.spawn(player)
 	if not player:GetAttribute("Character") then
 		player:SetAttribute("Character", Characters.Default)
 	end
-	player:SetAttribute("Ult", 0)
+	player:SetAttribute("Ult", Config.TestUltFull and Config.Ult.Max or 0)
 	player:SetAttribute("UltMode", false)
+	player:SetAttribute("UltPhase", "")
+	player:SetAttribute("UltEvasion", false)
+	player:SetAttribute("UltRebirth", false)
 	for index = 1, 4 do
 		player:SetAttribute("CD" .. index, 0)
 	end

@@ -55,6 +55,35 @@ end
 Combat.start()
 Skills.start()
 
+if Config.TestArena and Config.TestDummyAttack then
+	local State = require(script.Parent.State)
+	task.spawn(function()
+		while true do
+			task.wait(Config.TestDummyInterval)
+			for _, dummy in workspace:GetChildren() do
+				local root = dummy.Name == "Dummy" and dummy:FindFirstChild("HumanoidRootPart")
+				if root and State.canAct(dummy) then
+					for _, player in Players:GetPlayers() do
+						local character = player.Character
+						local target = character and character:FindFirstChild("HumanoidRootPart")
+						if target and State.alive(character) and (target.Position - root.Position).Magnitude < 7 then
+							Combat.face(dummy, target.Position)
+							Combat.playAnim(dummy, "Blade1")
+							Net.Fx:FireAllClients("Swing", { Character = dummy })
+							task.delay(Config.M1.Windup, function()
+								if State.canAct(dummy) and target.Parent and (target.Position - root.Position).Magnitude < 8 then
+									Combat.damage(dummy, character, { Damage = Config.TestDummyDamage, Stun = 0.4 })
+								end
+							end)
+							break
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
 local lastSelect = {}
 
 Net.SelectCharacter.OnServerEvent:Connect(function(player, id)

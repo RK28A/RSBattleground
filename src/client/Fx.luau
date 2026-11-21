@@ -342,4 +342,22 @@ function Fx.Shatter(data)
 	sound(Config.Sounds.Shatter, position)
 end
 
+Fx.Util = {
+	Folder = folder,
+	Random = random,
+	White = WHITE,
+	Spark = SPARK,
+	Smoke = SMOKE,
+	accentOf = accentOf,
+	involves = involves,
+	holder = holder,
+	neon = neon,
+	tween = tween,
+	sound = sound,
+	burst = burst,
+	flash = flash,
+	streaks = streaks,
+	highlight = highlight,
+}
+
 return Fx

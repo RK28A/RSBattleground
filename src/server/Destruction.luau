@@ -103,6 +103,10 @@ function Destruction.blast(position, radius, force)
 	return broke
 end
 
+function Destruction.is(part)
+	return part:IsA("BasePart") and CollectionService:HasTag(part, TAG)
+end
+
 function Destruction.tag(part)
 	CollectionService:AddTag(part, TAG)
 end
