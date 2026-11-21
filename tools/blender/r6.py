@@ -189,7 +189,7 @@ def bake(nodes, length):
 
 def write_luau(path, clips):
     def number(value):
-        text = f"{value:.4f}".rstrip("0").rstrip(".")
+        text = f"{value:.3f}".rstrip("0").rstrip(".")
         return "0" if text in ("-0", "") else text
 
     lines = ["return {"]
@@ -201,7 +201,8 @@ def write_luau(path, clips):
             lines.append(f"\t\t{option} = {value},")
         lines.append("\t\tFrames = {")
         for joint, frames in clip["data"].items():
-            rows = ", ".join("{" + ", ".join(number(v) for v in frame) + "}" for frame in frames)
+            still = all(abs(v) < 1e-5 for frame in frames for v in frame[:3])
+            rows = ",".join("{" + ",".join(number(v) for v in (frame[3:] if still else frame)) + "}" for frame in frames)
             lines.append(f"\t\t\t{joint} = {{ {rows} }},")
         lines.append("\t\t},")
         lines.append("\t},")

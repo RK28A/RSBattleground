@@ -25,7 +25,11 @@ for name, source in Baked do
 	for joint, rows in source.Frames do
 		local list = table.create(#rows)
 		for index, row in rows do
-			list[index] = CFrame.new(row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+			if #row == 4 then
+				list[index] = CFrame.new(0, 0, 0, row[1], row[2], row[3], row[4])
+			else
+				list[index] = CFrame.new(row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+			end
 		end
 		frames[joint] = list
 		joints[joint] = true
