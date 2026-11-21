@@ -4,6 +4,27 @@ local PALE = Color3.fromRGB(196, 228, 255)
 local STEEL = Color3.fromRGB(34, 38, 52)
 local WHITE = Color3.new(1, 1, 1)
 
+local function handle(model, arm, grip)
+	local part = Instance.new("Part")
+	part.Name = "Handle"
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
+	part.Transparency = 1
+	part.Massless = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.CollisionGroup = "Players"
+	part.CFrame = arm.CFrame * grip
+	part.Parent = model
+	local motor = Instance.new("Motor6D")
+	motor.Name = "Grip"
+	motor.Part0 = arm
+	motor.Part1 = part
+	motor.C0 = grip
+	motor.Parent = arm
+	return part
+end
+
 local function piece(model, arm, size, offset, color, material)
 	local part = Instance.new("Part")
 	part.Size = size
@@ -17,7 +38,7 @@ local function piece(model, arm, size, offset, color, material)
 	part.CollisionGroup = "Players"
 	part.CFrame = arm.CFrame * offset
 	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = arm
+	weld.Part0 = model:FindFirstChild("Handle") or arm
 	weld.Part1 = part
 	weld.Parent = part
 	part.Parent = model
@@ -28,6 +49,7 @@ local builders = {}
 
 function builders.SpiritBlade(model, arm)
 	local grip = CFrame.new(0, -1, 0)
+	handle(model, arm, grip)
 	piece(model, arm, Vector3.new(0.24, 0.24, 1.1), grip * CFrame.new(0, 0, 0.1), STEEL, Enum.Material.Metal)
 	piece(model, arm, Vector3.new(0.34, 0.34, 0.22), grip * CFrame.new(0, 0, 0.72), PALE, Enum.Material.Neon)
 	piece(model, arm, Vector3.new(1.5, 0.16, 0.2), grip * CFrame.new(0, 0, -0.55), STEEL, Enum.Material.Metal)
@@ -61,6 +83,10 @@ function Weapons.equip(character, definition)
 	local existing = character:FindFirstChild("Weapon")
 	if existing then
 		existing:Destroy()
+	end
+	local oldGrip = character:FindFirstChild("Right Arm") and character["Right Arm"]:FindFirstChild("Grip")
+	if oldGrip then
+		oldGrip:Destroy()
 	end
 	local build = definition.Weapon and builders[definition.Weapon]
 	local arm = character:FindFirstChild("Right Arm")

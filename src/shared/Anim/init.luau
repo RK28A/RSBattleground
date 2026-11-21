@@ -2,6 +2,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Clips = require(script:WaitForChild("Clips"))
+local Baked = require(script:WaitForChild("Baked"))
 
 local JOINTS = {
 	Torso = { "HumanoidRootPart", "RootJoint" },
@@ -10,6 +11,7 @@ local JOINTS = {
 	LA = { "Torso", "Left Shoulder" },
 	RL = { "Torso", "Right Hip" },
 	LL = { "Torso", "Left Hip" },
+	Weapon = { "Right Arm", "Grip" },
 }
 
 local IDENTITY = CFrame.identity
@@ -17,7 +19,33 @@ local IDENTITY = CFrame.identity
 local Anim = {}
 local rigs = {}
 
+for name, source in Baked do
+	local frames = {}
+	local joints = {}
+	for joint, rows in source.Frames do
+		local list = table.create(#rows)
+		for index, row in rows do
+			list[index] = CFrame.new(row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+		end
+		frames[joint] = list
+		joints[joint] = true
+	end
+	Clips[name] = {
+		Baked = true,
+		Fps = source.Fps,
+		Length = source.Length,
+		Hold = source.Hold,
+		FadeIn = source.FadeIn,
+		FadeOut = source.FadeOut,
+		Frames = frames,
+		Joints = joints,
+	}
+end
+
 for _, clip in Clips do
+	if clip.Baked then
+		continue
+	end
 	clip.Joints = {}
 	for _, key in clip.Keys do
 		for joint in key.Pose do
@@ -65,6 +93,19 @@ local function sample(clip, time)
 		end
 	end
 	return keys[count].Pose, keys[count].Pose, 0
+end
+
+local function pose(clip, joint, time)
+	if clip.Baked then
+		local frames = clip.Frames[joint]
+		local position = math.clamp(time * clip.Fps, 0, #frames - 1)
+		local index = math.floor(position)
+		local a = frames[index + 1]
+		local b = frames[math.min(index + 2, #frames)]
+		return a:Lerp(b, position - index)
+	end
+	local a, b, alpha = sample(clip, time)
+	return (a[joint] or IDENTITY):Lerp(b[joint] or IDENTITY, alpha)
 end
 
 function Anim.play(character, name, speed)
@@ -171,9 +212,8 @@ local function step(dt)
 			local inverse = rotation:Inverse()
 			for _, track in tracks do
 				if track.Clip.Joints[joint] then
-					local a, b, alpha = sample(track.Clip, math.min(track.Time, track.Clip.Length))
-					local pose = (a[joint] or IDENTITY):Lerp(b[joint] or IDENTITY, alpha)
-					result = result:Lerp(inverse * pose * rotation, math.clamp(track.Weight, 0, 1))
+					local target = pose(track.Clip, joint, math.min(track.Time, track.Clip.Length))
+					result = result:Lerp(inverse * target * rotation, math.clamp(track.Weight, 0, 1))
 				end
 			end
 			motor.Transform = result
