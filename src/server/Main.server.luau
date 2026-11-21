@@ -47,15 +47,15 @@ end
 
 if Config.TestArena then
 	buildTestArena()
-	for index = 1, Config.TestDummies do
-		task.spawn(Avatar.spawnDummy, index)
-	end
+end
+for index = 1, Config.TestDummies do
+	task.spawn(Avatar.spawnDummy, index)
 end
 
 Combat.start()
 Skills.start()
 
-if Config.TestArena and Config.TestDummyAttack then
+if Config.TestDummies > 0 and Config.TestDummyAttack then
 	local State = require(script.Parent.State)
 	task.spawn(function()
 		while true do
@@ -82,6 +82,20 @@ if Config.TestArena and Config.TestDummyAttack then
 			end
 		end
 	end)
+end
+
+if Config.Debug then
+	local hook = Instance.new("BindableFunction")
+	hook.Name = "RSBDebug"
+	hook.OnInvoke = function(params)
+		local dummy = workspace:FindFirstChild("Dummy")
+		local player = Players:GetPlayers()[1]
+		if not dummy or not player or not player.Character then
+			return "Missing"
+		end
+		return tostring(Combat.damage(dummy, player.Character, params))
+	end
+	hook.Parent = script.Parent
 end
 
 local lastSelect = {}

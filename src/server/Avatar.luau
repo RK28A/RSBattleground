@@ -163,7 +163,9 @@ function Avatar.spawnDummy(index)
 		return
 	end
 	model.Name = "Dummy"
-	model:PivotTo(CFrame.new(index * 10 - 15, 5, -20))
+	local spawn = workspace:FindFirstChildWhichIsA("SpawnLocation", true)
+	local origin = spawn and spawn.Position or Vector3.zero
+	model:PivotTo(CFrame.new(origin + Vector3.new((index - 1) * 8, 5, -16)))
 	model.Parent = workspace
 	Avatar.prepare(model, function()
 		task.delay(Config.RespawnTime, function()

@@ -47,7 +47,7 @@ function Skill.Release(ctx, held)
 	for _, direction in directions do
 		ctx.Projectile.fire({
 			Owner = character,
-			Origin = origin,
+			Origin = root.Position + Vector3.new(0, 0.6, 0),
 			Direction = direction,
 			Speed = skill.Speed,
 			Range = range,

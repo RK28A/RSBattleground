@@ -44,6 +44,26 @@ function Combat.push(character, velocity, duration)
 	Debris:AddItem(attachment, duration or 0.18)
 end
 
+function Combat.brake(character, duration)
+	local root = rootOf(character)
+	if not root then
+		return
+	end
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "Brake"
+	local force = Instance.new("LinearVelocity")
+	force.Attachment0 = attachment
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+	force.PrimaryTangentAxis = Vector3.xAxis
+	force.SecondaryTangentAxis = Vector3.zAxis
+	force.PlaneVelocity = Vector2.zero
+	force.MaxForce = 1e6
+	force.Parent = attachment
+	attachment.Parent = root
+	Debris:AddItem(attachment, duration)
+end
+
 function Combat.addUlt(character, amount)
 	local player = Players:GetPlayerFromCharacter(character)
 	if not player or player:GetAttribute("UltMode") then
@@ -240,6 +260,9 @@ function Combat.damage(attacker, victim, params)
 	end
 	if params.Knockback then
 		Combat.push(victim, params.Knockback, params.KnockTime or 0.18)
+		if params.KnockTime then
+			task.delay(params.KnockTime, Combat.brake, victim, 0.2)
+		end
 	end
 	if params.Ragdoll then
 		Ragdoll.start(victim, params.Ragdoll)

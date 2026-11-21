@@ -38,7 +38,7 @@ function Skill.Release(ctx, held)
 	local direction = flat.Magnitude > 0.1 and flat.Unit or root.CFrame.LookVector
 	ctx.Projectile.fire({
 		Owner = character,
-		Origin = origin,
+		Origin = root.Position + Vector3.new(0, 0.6, 0),
 		Direction = aim,
 		Speed = skill.Speed,
 		Range = skill.Range,
