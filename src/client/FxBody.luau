@@ -494,25 +494,36 @@ function FxBody.faceEyes(character, mastered)
 			decal.Transparency = 1
 		end
 	end
-	local gui = make("SurfaceGui", {
+	local plate = make("Part", {
 		Name = "AlmightyFace",
+		Size = Vector3.new(1.2, 0.7, 0.05),
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		Massless = true,
+		CastShadow = false,
+		CFrame = head.CFrame * CFrame.new(0, 0.05, -0.62),
+	})
+	make("WeldConstraint", { Part0 = head, Part1 = plate, Parent = plate })
+	plate.Parent = character
+	local gui = make("SurfaceGui", {
 		Face = Enum.NormalId.Front,
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
-		PixelsPerStud = 120,
+		PixelsPerStud = 200,
 		LightInfluence = 0,
 		Brightness = mastered and 3 or 2,
-		ZOffset = 2,
-		Adornee = head,
-		Parent = head,
+		Adornee = plate,
+		Parent = plate,
 	})
-	set.Gui = gui
+	set.Gui = plate
 	local color = mastered and CRIMSON:Lerp(VIOLET, 0.35) or VIOLET
 	local lids = {}
 	for side = -1, 1, 2 do
-		local x = 0.5 + side * 0.17
+		local x = 0.5 + side * 0.24
 		local _, lid = buildEye(gui, {
-			Position = UDim2.fromScale(x, 0.4),
-			Size = UDim2.fromScale(0.2, 0.17),
+			Position = UDim2.fromScale(x, 0.42),
+			Size = UDim2.fromScale(0.3, 0.26),
 			Tilt = side * 12,
 			Color = color,
 			Pupils = mastered and 4 or 3,
@@ -522,8 +533,8 @@ function FxBody.faceEyes(character, mastered)
 		table.insert(lids, lid)
 		make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(x - side * 0.01, 0.25),
-			Size = UDim2.fromScale(0.2, 0.035),
+			Position = UDim2.fromScale(x - side * 0.01, 0.16),
+			Size = UDim2.fromScale(0.3, 0.05),
 			Rotation = side * -16,
 			BackgroundColor3 = INK,
 			BorderSizePixel = 0,
@@ -531,11 +542,11 @@ function FxBody.faceEyes(character, mastered)
 			Parent = gui,
 		}, { round() })
 		for streak = 1, mastered and 3 or 2 do
-			local offsetX = x + side * (streak - 2) * 0.03
+			local offsetX = x + side * (streak - 2) * 0.045
 			make("Frame", {
 				AnchorPoint = Vector2.new(0.5, 0),
-				Position = UDim2.fromScale(offsetX, 0.5),
-				Size = UDim2.fromScale(0.012, 0.16 + streak * 0.05),
+				Position = UDim2.fromScale(offsetX, 0.56),
+				Size = UDim2.fromScale(0.018, 0.26 + streak * 0.07),
 				Rotation = side * (4 + streak * 6),
 				BackgroundColor3 = INK,
 				BackgroundTransparency = 0.15,
