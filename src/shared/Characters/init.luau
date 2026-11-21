@@ -1,4 +1,4 @@
-local order = { "Sovereign", "Warrior", "Pride" }
+local order = { "Sovereign" }
 
 local Characters = {
 	Order = order,

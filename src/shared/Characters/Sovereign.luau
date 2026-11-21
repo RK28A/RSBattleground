@@ -5,6 +5,7 @@ return {
 	Dark = Color3.fromRGB(14, 20, 38),
 	Shadow = Color3.fromRGB(150, 70, 255),
 	M1Set = "Blade",
+	Weapon = "SpiritBlade",
 	M1Damage = { 3, 3, 4, 5 },
 	Skills = {
 		{

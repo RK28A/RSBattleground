@@ -117,7 +117,7 @@ local function tryM1()
 	end
 
 	Anim.play(character, clip)
-	Fx.Swing({ Character = character, Heavy = heavy })
+	Fx.Swing({ Character = character, Heavy = heavy, Clip = clip })
 	if not airborne then
 		impulse(root, (root.CFrame.LookVector * FLAT).Unit, M1.Lunge, M1.LungeTime)
 	end

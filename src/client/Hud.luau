@@ -11,25 +11,27 @@ local Characters = require(Shared:WaitForChild("Characters"))
 
 local player = Players.LocalPlayer
 
-local INK = Color3.fromRGB(10, 11, 14)
-local PAPER = Color3.fromRGB(240, 238, 230)
+local INK = Color3.fromRGB(10, 13, 22)
+local SILVER = Color3.fromRGB(242, 244, 248)
 local DANGER = Color3.fromRGB(232, 62, 52)
-local HEAD = Enum.Font.Oswald
-local BODY = Enum.Font.GothamMedium
+local SERIF = Enum.Font.Garamond
+local DIGIT = Enum.Font.Michroma
 
 local Hud = {}
 
 local gui
+local definition = Characters.get(nil)
+local diamond, diamondCore, diamondStroke
+local wingLeft, wingRight, fillLeft, fillRight
+local ultName, ultKey
 local healthFill, healthGhost, healthText
-local ultFill, ultLabel, ultKey, ultFrame, ultStroke
-local phaseRow, evasionChip, rebirthChip
+local evasionChip, rebirthChip
 local phaseEyes = {}
-local masteredShown = false
 local slots = {}
 local roster
 local choice
 local choiceLabels = {}
-local definition = Characters.get(nil)
+local lastPhase = ""
 
 local function make(class, properties, children)
 	local instance = Instance.new(class)
@@ -46,6 +48,10 @@ local function corner(radius)
 	return make("UICorner", { CornerRadius = UDim.new(0, radius) })
 end
 
+local function round()
+	return make("UICorner", { CornerRadius = UDim.new(0.5, 0) })
+end
+
 local function stroke(color, thickness, transparency)
 	return make("UIStroke", {
 		Color = color,
@@ -58,9 +64,9 @@ end
 local function label(properties)
 	local base = {
 		BackgroundTransparency = 1,
-		Font = BODY,
-		TextColor3 = PAPER,
-		TextSize = 14,
+		Font = SERIF,
+		TextColor3 = SILVER,
+		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Center,
 	}
@@ -70,180 +76,235 @@ local function label(properties)
 	return make("TextLabel", base)
 end
 
-local function glyphEye(color)
+local function taper(rotation)
+	return make("UIGradient", {
+		Rotation = rotation,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.7, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	})
+end
+
+local function glyphEye()
 	local iris = make("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromScale(0.4, 0.8),
-		BackgroundColor3 = color,
+		BackgroundColor3 = SILVER,
 		BorderSizePixel = 0,
 	}, {
-		make("UICorner", { CornerRadius = UDim.new(0.5, 0) }),
+		round(),
 		make("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.22, 0.8),
+			Size = UDim2.fromScale(0.24, 0.8),
 			BackgroundColor3 = INK,
 			BorderSizePixel = 0,
-		}, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }) }),
+		}, { round() }),
 	})
 	return make("Frame", {
 		Size = UDim2.fromOffset(24, 12),
 		BackgroundColor3 = INK,
 		BorderSizePixel = 0,
 		Visible = false,
-	}, { make("UICorner", { CornerRadius = UDim.new(0.5, 0) }), stroke(color, 1, 0), iris })
+	}, { round(), stroke(SILVER, 1, 0), iris })
 end
 
 local function chip(text, order)
 	return label({
-		Size = UDim2.fromOffset(0, 16),
+		Size = UDim2.fromOffset(0, 18),
 		AutomaticSize = Enum.AutomaticSize.X,
-		BackgroundColor3 = INK,
-		BackgroundTransparency = 0.25,
-		Font = HEAD,
-		TextSize = 13,
-		Text = "  " .. text .. "  ",
+		TextSize = 15,
+		Text = text,
 		LayoutOrder = order,
 		Visible = false,
 	})
 end
 
-local function buildSlot(index)
-	local cooldown = make("Frame", {
-		Name = "Cooldown",
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.fromScale(1, 0),
+local function buildTop()
+	fillLeft = make("Frame", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.fromScale(0, 1),
+		BorderSizePixel = 0,
+	})
+	wingLeft = make("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(0.5, -20, 0, 11),
+		Size = UDim2.fromOffset(250, 4),
 		BackgroundColor3 = INK,
-		BackgroundTransparency = 0.25,
+		BackgroundTransparency = 0.35,
 		BorderSizePixel = 0,
-		ZIndex = 3,
-	}, { corner(4) })
-	local timer = label({
-		Name = "Timer",
-		Size = UDim2.fromScale(1, 1),
-		Font = HEAD,
-		TextSize = 26,
-		Text = "",
-		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex = 4,
-	})
-	local name = label({
-		Name = "Name",
-		Position = UDim2.new(0, 8, 1, -30),
-		Size = UDim2.new(1, -16, 0, 26),
-		TextSize = 12,
-		TextWrapped = true,
-		TextYAlignment = Enum.TextYAlignment.Bottom,
-		Text = "",
-		ZIndex = 2,
-	})
-	local key = label({
-		Name = "Key",
-		Position = UDim2.fromOffset(8, 6),
-		Size = UDim2.fromOffset(20, 20),
-		Font = HEAD,
-		TextSize = 20,
-		Text = tostring(index),
-		ZIndex = 2,
-	})
-	local bar = make("Frame", {
-		Name = "Accent",
-		Size = UDim2.new(1, 0, 0, 3),
-		BorderSizePixel = 0,
-		ZIndex = 2,
-	})
-	local outline = stroke(PAPER, 1, 0.75)
-	local frame = make("Frame", {
-		Name = "Slot" .. index,
-		Size = UDim2.fromOffset(108, 62),
-		BackgroundColor3 = INK,
-		BackgroundTransparency = 0.18,
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		LayoutOrder = index,
-	}, { corner(4), outline, bar, key, name, cooldown, timer })
-	return { Frame = frame, Name = name, Key = key, Bar = bar, Cooldown = cooldown, Timer = timer, Outline = outline }
-end
+	}, { taper(180), fillLeft })
 
-local function buildBottom()
-	healthGhost = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = PAPER, BackgroundTransparency = 0.6, BorderSizePixel = 0 }, { corner(3) })
-	healthFill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = PAPER, BorderSizePixel = 0, ZIndex = 2 }, { corner(3) })
+	fillRight = make("Frame", {
+		Size = UDim2.fromScale(0, 1),
+		BorderSizePixel = 0,
+	})
+	wingRight = make("Frame", {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0.5, 20, 0, 11),
+		Size = UDim2.fromOffset(250, 4),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+	}, { taper(0), fillRight })
+
+	diamondCore = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0, 0),
+		BorderSizePixel = 0,
+	})
+	diamondStroke = stroke(SILVER, 1.5, 0.2)
+	diamond = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0, 11),
+		Size = UDim2.fromOffset(18, 18),
+		Rotation = 45,
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.2,
+		BorderSizePixel = 0,
+	}, { diamondStroke, diamondCore })
+
+	ultName = label({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 26),
+		Size = UDim2.fromOffset(360, 18),
+		TextSize = 17,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = "",
+	})
+	ultKey = label({
+		Position = UDim2.new(0.5, 280, 0, 4),
+		Size = UDim2.fromOffset(60, 14),
+		Font = DIGIT,
+		TextSize = 11,
+		Text = "G",
+	})
+
+	healthGhost = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = SILVER, BackgroundTransparency = 0.65, BorderSizePixel = 0 })
+	healthFill = make("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = SILVER, BorderSizePixel = 0, ZIndex = 2 })
 	healthText = label({
-		Position = UDim2.new(1, 10, 0, 0),
-		Size = UDim2.fromOffset(60, 16),
-		Font = HEAD,
-		TextSize = 20,
+		Position = UDim2.new(1, 10, 0.5, -8),
+		Size = UDim2.fromOffset(50, 16),
+		Font = DIGIT,
+		TextSize = 12,
 		Text = "100",
 	})
 	local health = make("Frame", {
 		Name = "Health",
-		Position = UDim2.fromOffset(0, 22),
-		Size = UDim2.new(1, 0, 0, 16),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 50),
+		Size = UDim2.fromOffset(300, 5),
 		BackgroundColor3 = INK,
-		BackgroundTransparency = 0.3,
+		BackgroundTransparency = 0.35,
 		BorderSizePixel = 0,
-	}, { corner(3), stroke(INK, 2, 0.2), healthGhost, healthFill, healthText })
+	}, { healthGhost, healthFill, healthText })
 
-	ultFill = make("Frame", { Size = UDim2.fromScale(0, 1), BorderSizePixel = 0 }, { corner(2) })
-	ultLabel = label({
-		Position = UDim2.new(0, 0, 0, -16),
-		Size = UDim2.fromOffset(300, 14),
-		Font = HEAD,
-		TextSize = 14,
-		Text = "",
-	})
-	ultKey = label({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, 0, 0, -16),
-		Size = UDim2.fromOffset(60, 14),
-		Font = HEAD,
-		TextSize = 14,
-		Text = "G",
-		TextXAlignment = Enum.TextXAlignment.Right,
-		TextTransparency = 0.5,
-	})
-	evasionChip = chip("FUTURE EVASION", 2)
-	rebirthChip = chip("REBIRTH READY", 3)
-	phaseEyes[1] = glyphEye(PAPER)
+	evasionChip = chip("Future evasion", 2)
+	rebirthChip = chip("Rebirth ready", 3)
+	phaseEyes[1] = glyphEye()
 	phaseEyes[1].LayoutOrder = 1
-	phaseEyes[2] = glyphEye(PAPER)
+	phaseEyes[2] = glyphEye()
 	phaseEyes[2].LayoutOrder = 4
-	phaseRow = make("Frame", {
+	local phaseRow = make("Frame", {
 		Name = "Phase",
-		Position = UDim2.new(0, 0, 0, -38),
-		Size = UDim2.new(1, 0, 0, 16),
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 64),
+		Size = UDim2.fromOffset(420, 18),
 		BackgroundTransparency = 1,
 	}, {
 		make("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 6),
+			Padding = UDim.new(0, 12),
 		}),
 		phaseEyes[1],
 		evasionChip,
 		rebirthChip,
 		phaseEyes[2],
 	})
-	ultStroke = stroke(PAPER, 1, 1)
-	ultFrame = make("Frame", {
-		Name = "Ult",
-		Position = UDim2.fromOffset(0, 6),
-		Size = UDim2.new(1, 0, 0, 6),
+
+	make("Frame", {
+		Name = "Top",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 16),
+		Size = UDim2.fromOffset(700, 90),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, { wingLeft, wingRight, diamond, ultName, ultKey, health, phaseRow })
+end
+
+local function buildSlot(index)
+	local fill = make("Frame", { Size = UDim2.fromScale(1, 1), BorderSizePixel = 0 })
+	local track = make("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.new(1, 0, 0, 2),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.2,
+		BorderSizePixel = 0,
+	}, { fill })
+	local badgeStroke = stroke(SILVER, 1, 0.3)
+	local badge = make("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(18, 17),
+		Size = UDim2.fromOffset(15, 15),
+		Rotation = 45,
+		BackgroundColor3 = INK,
+		BorderSizePixel = 0,
+	}, { badgeStroke })
+	local key = label({
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(18, 17),
+		Size = UDim2.fromOffset(20, 20),
+		Font = DIGIT,
+		TextSize = 10,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		Text = tostring(index),
+		ZIndex = 2,
+	})
+	local name = label({
+		Position = UDim2.new(0, 10, 1, -36),
+		Size = UDim2.new(1, -18, 0, 30),
+		TextSize = 15,
+		TextWrapped = true,
+		TextYAlignment = Enum.TextYAlignment.Bottom,
+		Text = "",
+	})
+	local timer = label({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -9, 0, 8),
+		Size = UDim2.fromOffset(60, 18),
+		Font = DIGIT,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Text = "",
+	})
+	local frame = make("Frame", {
+		Name = "Move" .. index,
+		Size = UDim2.fromOffset(118, 64),
 		BackgroundColor3 = INK,
 		BackgroundTransparency = 0.3,
 		BorderSizePixel = 0,
-	}, { corner(2), ultStroke, ultFill, ultLabel, ultKey, phaseRow })
-	local ult = ultFrame
+		LayoutOrder = index,
+	}, { corner(2), track, badge, key, name, timer })
+	return { Frame = frame, Name = name, Key = key, Fill = fill, Timer = timer, BadgeStroke = badgeStroke }
+end
 
+local function buildBottom()
 	local row = make("Frame", {
-		Name = "Skills",
-		Position = UDim2.fromOffset(0, 48),
-		Size = UDim2.new(1, 0, 0, 62),
+		Name = "Moves",
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(520, 64),
 		BackgroundTransparency = 1,
+		Parent = gui,
 	}, {
 		make("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
@@ -257,77 +318,50 @@ local function buildBottom()
 		slot.Frame.Parent = row
 		slots[index] = slot
 	end
-
-	make("Frame", {
-		Name = "Bottom",
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -22),
-		Size = UDim2.fromOffset(462, 110),
-		BackgroundTransparency = 1,
-		Parent = gui,
-	}, { ult, health, row })
 end
 
 local function buildChoice()
-	local list = make("UIListLayout", {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, 8),
-	})
 	choice = make("Frame", {
 		Name = "UltChoice",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -150),
-		Size = UDim2.fromOffset(620, 54),
+		Position = UDim2.new(0.5, 0, 1, -102),
+		Size = UDim2.fromOffset(640, 46),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = gui,
-	}, { list })
+	}, {
+		make("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Padding = UDim.new(0, 8),
+		}),
+	})
 	for index = 1, 4 do
 		local text = label({
 			Size = UDim2.fromScale(1, 1),
-			Font = HEAD,
-			TextSize = 17,
+			TextSize = 16,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			Text = "",
 		})
 		make("Frame", {
-			Size = UDim2.fromOffset(146, 54),
+			Size = UDim2.fromOffset(150, 46),
 			BackgroundColor3 = INK,
-			BackgroundTransparency = 0.12,
+			BackgroundTransparency = 0.2,
 			BorderSizePixel = 0,
 			LayoutOrder = index,
 			Parent = choice,
-		}, { corner(4), stroke(PAPER, 1, 0.6), text })
+		}, { corner(2), text })
 		choiceLabels[index] = text
 	end
 end
 
 local function buildRoster()
-	local open = make("TextButton", {
-		Name = "RosterButton",
-		Position = UDim2.fromOffset(18, 18),
-		Size = UDim2.fromOffset(150, 34),
-		BackgroundColor3 = INK,
-		BackgroundTransparency = 0.18,
-		BorderSizePixel = 0,
-		AutoButtonColor = false,
-		Font = HEAD,
-		TextSize = 18,
-		TextColor3 = PAPER,
-		Text = "CHARACTERS  M",
-		Parent = gui,
-	}, { corner(4), stroke(PAPER, 1, 0.75) })
-	open.Activated:Connect(function()
-		Hud.toggleRoster()
-	end)
-
 	roster = make("Frame", {
 		Name = "Roster",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.46),
-		Size = UDim2.fromOffset(#Characters.Order * 232 + 16, 300),
+		Position = UDim2.fromScale(0.5, 0.48),
+		Size = UDim2.fromOffset(#Characters.Order * 236 + 16, 280),
 		BackgroundTransparency = 1,
 		Visible = false,
 		Parent = gui,
@@ -339,32 +373,37 @@ local function buildRoster()
 			Padding = UDim.new(0, 16),
 		}),
 	})
+	if #Characters.Order < 2 then
+		return
+	end
+
+	local open = make("TextButton", {
+		Name = "RosterButton",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -18, 0, 18),
+		Size = UDim2.fromOffset(150, 30),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.3,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Font = SERIF,
+		TextSize = 17,
+		TextColor3 = SILVER,
+		Text = "Change fighter",
+		Parent = gui,
+	}, { corner(2) })
+	open.Activated:Connect(function()
+		Hud.toggleRoster()
+	end)
 
 	for order, id in Characters.Order do
 		local def = Characters.List[id]
-		local band = make("Frame", {
-			Size = UDim2.new(1, 0, 0, 120),
-			BackgroundColor3 = def.Accent,
-			BorderSizePixel = 0,
-		}, {
-			make("UIGradient", {
-				Rotation = 90,
-				Color = ColorSequence.new(def.Accent, def.Dark),
-			}),
-			label({
-				Position = UDim2.fromOffset(14, 8),
-				Size = UDim2.fromOffset(60, 60),
-				Font = HEAD,
-				TextSize = 64,
-				TextTransparency = 0.25,
-				Text = string.format("%02d", order),
-			}),
-		})
+		local outline = stroke(def.Accent, 1, 0.6)
 		local card = make("TextButton", {
 			Name = id,
-			Size = UDim2.fromOffset(216, 300),
+			Size = UDim2.fromOffset(220, 280),
 			BackgroundColor3 = INK,
-			BackgroundTransparency = 0.06,
+			BackgroundTransparency = 0.08,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			ClipsDescendants = true,
@@ -372,40 +411,41 @@ local function buildRoster()
 			LayoutOrder = order,
 			Parent = roster,
 		}, {
-			corner(6),
-			stroke(def.Accent, 1, 0.5),
-			band,
+			corner(2),
+			outline,
+			make("Frame", {
+				Size = UDim2.new(1, 0, 0, 130),
+				BackgroundColor3 = def.Accent,
+				BorderSizePixel = 0,
+			}, { make("UIGradient", { Rotation = 90, Color = ColorSequence.new(def.Accent, def.Dark) }) }),
 			label({
-				Position = UDim2.fromOffset(14, 132),
-				Size = UDim2.new(1, -28, 0, 30),
-				Font = HEAD,
+				Position = UDim2.fromOffset(16, 144),
+				Size = UDim2.new(1, -32, 0, 30),
 				TextSize = 26,
-				Text = string.upper(def.Name),
+				Text = def.Name,
 			}),
 			label({
-				Position = UDim2.fromOffset(14, 164),
-				Size = UDim2.new(1, -28, 0, 36),
-				TextSize = 13,
-				TextTransparency = 0.3,
+				Position = UDim2.fromOffset(16, 178),
+				Size = UDim2.new(1, -32, 0, 40),
+				TextSize = 15,
+				TextTransparency = 0.35,
 				TextWrapped = true,
 				TextYAlignment = Enum.TextYAlignment.Top,
 				Text = def.Tagline,
 			}),
 			label({
-				Position = UDim2.new(0, 14, 1, -40),
-				Size = UDim2.new(1, -28, 0, 26),
-				Font = HEAD,
-				TextSize = 18,
+				Position = UDim2.new(0, 16, 1, -38),
+				Size = UDim2.new(1, -32, 0, 24),
+				TextSize = 17,
 				TextColor3 = def.Accent,
-				Text = "SELECT",
+				Text = "Play as " .. def.Name,
 			}),
 		})
-		local outline = card:FindFirstChildOfClass("UIStroke")
 		card.MouseEnter:Connect(function()
-			TweenService:Create(outline, TweenInfo.new(0.12), { Transparency = 0, Thickness = 2 }):Play()
+			TweenService:Create(outline, TweenInfo.new(0.12), { Transparency = 0 }):Play()
 		end)
 		card.MouseLeave:Connect(function()
-			TweenService:Create(outline, TweenInfo.new(0.12), { Transparency = 0.5, Thickness = 1 }):Play()
+			TweenService:Create(outline, TweenInfo.new(0.12), { Transparency = 0.6 }):Play()
 		end)
 		card.Activated:Connect(function()
 			Net.SelectCharacter:FireServer(id)
@@ -427,20 +467,30 @@ local function applyDefinition()
 	for index, slot in slots do
 		local skill = skills[index]
 		slot.Name.Text = skill and skill.Name or ""
-		slot.Bar.BackgroundColor3 = definition.Accent
-		slot.Key.TextColor3 = definition.Accent
-		slot.Frame.BackgroundColor3 = definition.Dark
 	end
-	ultFill.BackgroundColor3 = definition.Accent
-	ultLabel.Text = string.upper(definition.Ult.Name)
-	ultLabel.TextColor3 = definition.Accent
 	if definition.Ult.Options then
 		for index, text in choiceLabels do
 			local option = definition.Ult.Options[index]
-			text.Text = option and (index .. "  " .. string.upper(option.Name)) or ""
+			text.Text = option and (index .. "   " .. option.Name) or ""
 		end
 	end
 	choice.Visible = false
+end
+
+local function setUlt(ratio, color)
+	fillLeft.Size = UDim2.fromScale(ratio, 1)
+	fillRight.Size = UDim2.fromScale(ratio, 1)
+	fillLeft.BackgroundColor3 = color
+	fillRight.BackgroundColor3 = color
+	diamondCore.BackgroundColor3 = color
+	diamondStroke.Color = color
+end
+
+local function pulseDiamond()
+	diamond.Size = UDim2.fromOffset(30, 30)
+	TweenService:Create(diamond, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(18, 18),
+	}):Play()
 end
 
 local function update(dt)
@@ -452,61 +502,60 @@ local function update(dt)
 		healthText.Text = tostring(math.ceil(humanoid.Health))
 	end
 	healthFill.Size = UDim2.fromScale(ratio, 1)
-	healthFill.BackgroundColor3 = ratio < 0.3 and DANGER or PAPER
+	healthFill.BackgroundColor3 = ratio < 0.3 and DANGER or SILVER
 	local ghost = healthGhost.Size.X.Scale
 	healthGhost.Size = UDim2.fromScale(ghost > ratio and math.max(ratio, ghost - dt * 0.5) or ratio, 1)
 
 	local now = workspace:GetServerTimeNow()
-	local shadow = definition.Shadow or definition.Accent
-	local wave = 0.5 + 0.5 * math.sin(os.clock() * 8)
+	local accent = definition.Accent
+	local shadow = definition.Shadow or accent
+	local wave = 0.5 + 0.5 * math.sin(os.clock() * 7)
+	local phase = ""
+
 	if player:GetAttribute("UltMode") then
+		phase = player:GetAttribute("UltPhase") or ""
 		local starts = player:GetAttribute("UltStart") or now
 		local ends = player:GetAttribute("UltEnd") or now
 		local remaining = math.max(ends - now, 0)
-		local phase = player:GetAttribute("UltPhase")
 		local mastered = phase == "Mastered"
-		ultFill.Size = UDim2.fromScale(math.clamp(remaining / math.max(ends - starts, 1), 0, 1), 1)
-		ultFill.BackgroundColor3 = mastered and shadow:Lerp(PAPER, wave * 0.7) or shadow
-		ultKey.Text = tostring(math.ceil(remaining)) .. "s"
+		local core = mastered and 0.5 + wave * 0.3 or 0.6
+		setUlt(math.clamp(remaining / math.max(ends - starts, 1), 0, 1), mastered and shadow:Lerp(SILVER, wave * 0.75) or shadow)
+		diamondCore.Size = UDim2.fromScale(core, core)
+		ultKey.Text = tostring(math.ceil(remaining))
 		ultKey.TextTransparency = 0
-		ultLabel.TextColor3 = mastered and PAPER:Lerp(shadow, wave * 0.5) or shadow
+		ultName.TextTransparency = 0
+		ultName.TextColor3 = mastered and SILVER or shadow:Lerp(SILVER, 0.45)
 		if phase == "Rebirth" then
-			ultLabel.Text = "THE FUTURE CANNOT BE ERASED"
+			ultName.Text = "The future cannot be erased"
 		elseif mastered then
-			ultLabel.Text = string.upper(definition.Ult.MasteredName or definition.Ult.Name)
+			ultName.Text = definition.Ult.MasteredName or definition.Ult.Name
 		else
-			ultLabel.Text = string.upper(definition.Ult.Name)
+			ultName.Text = definition.Ult.Name
 		end
-		if mastered ~= masteredShown then
-			masteredShown = mastered
-			TweenService:Create(ultFrame, TweenInfo.new(0.25, Enum.EasingStyle.Back), {
-				Size = UDim2.new(1, 0, 0, mastered and 9 or 6),
-			}):Play()
-			ultStroke.Color = shadow
-			ultStroke.Transparency = mastered and 0 or 1
-		end
+		local thick = mastered and 7 or 4
+		wingLeft.Size = UDim2.fromOffset(250, thick)
+		wingRight.Size = UDim2.fromOffset(250, thick)
 		evasionChip.Visible = player:GetAttribute("UltEvasion") == true and phase ~= "Rebirth"
-		evasionChip.TextColor3 = shadow:Lerp(PAPER, 0.5)
+		evasionChip.TextColor3 = shadow:Lerp(SILVER, 0.6)
 		rebirthChip.Visible = player:GetAttribute("UltRebirth") == true
-		rebirthChip.TextTransparency = 0.35
+		rebirthChip.TextTransparency = 0.3
 		for _, glyph in phaseEyes do
 			glyph.Visible = mastered
 		end
 		choice.Visible = false
 	else
 		local ult = math.clamp((player:GetAttribute("Ult") or 0) / Config.Ult.Max, 0, 1)
-		ultFill.Size = UDim2.fromScale(ult, 1)
 		local full = ult >= 1
+		local core = full and 0.45 + wave * 0.25 or ult * 0.5
+		setUlt(ult, full and accent:Lerp(SILVER, wave) or accent)
+		diamondCore.Size = UDim2.fromScale(core, core)
 		ultKey.Text = "G"
-		ultKey.TextTransparency = full and 0 or 0.5
-		ultFill.BackgroundColor3 = full and PAPER:Lerp(definition.Accent, wave) or definition.Accent
-		ultLabel.Text = string.upper(definition.Ult.Name)
-		ultLabel.TextColor3 = definition.Accent
-		if masteredShown then
-			masteredShown = false
-			ultFrame.Size = UDim2.new(1, 0, 0, 6)
-			ultStroke.Transparency = 1
-		end
+		ultKey.TextTransparency = full and 0 or 0.6
+		ultName.Text = definition.Ult.Name
+		ultName.TextColor3 = SILVER
+		ultName.TextTransparency = full and 0 or 0.45
+		wingLeft.Size = UDim2.fromOffset(250, 4)
+		wingRight.Size = UDim2.fromOffset(250, 4)
 		evasionChip.Visible = false
 		rebirthChip.Visible = false
 		for _, glyph in phaseEyes do
@@ -516,24 +565,40 @@ local function update(dt)
 			choice.Visible = false
 		end
 	end
+	if phase ~= lastPhase then
+		lastPhase = phase
+		if phase == "Startup" or phase == "Mastered" or phase == "Rebirth" then
+			pulseDiamond()
+		end
+	end
 
 	local skills = currentSkills()
+	local tint = player:GetAttribute("UltMode") and shadow or accent
 	for index, slot in slots do
 		local skill = skills[index]
 		local remaining = (player:GetAttribute("CD" .. index) or 0) - now
+		slot.BadgeStroke.Color = tint
+		slot.Fill.BackgroundColor3 = tint
 		if skill and remaining > 0 then
-			slot.Cooldown.Size = UDim2.fromScale(1, math.clamp(remaining / skill.Cooldown, 0, 1))
+			slot.Fill.Size = UDim2.fromScale(1 - math.clamp(remaining / skill.Cooldown, 0, 1), 1)
 			slot.Timer.Text = remaining >= 1 and tostring(math.ceil(remaining)) or string.format("%.1f", remaining)
-			slot.Outline.Transparency = 0.85
+			slot.Name.TextTransparency = 0.55
+			slot.Key.TextTransparency = 0.55
+			slot.Frame.BackgroundTransparency = 0.5
 		else
-			slot.Cooldown.Size = UDim2.fromScale(1, 0)
+			slot.Fill.Size = UDim2.fromScale(1, 1)
 			slot.Timer.Text = ""
-			slot.Outline.Transparency = 0.6
+			slot.Name.TextTransparency = 0
+			slot.Key.TextTransparency = 0
+			slot.Frame.BackgroundTransparency = 0.3
 		end
 	end
 end
 
 function Hud.toggleRoster()
+	if #Characters.Order < 2 then
+		return
+	end
 	roster.Visible = not roster.Visible
 end
 
@@ -569,6 +634,7 @@ function Hud.start()
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
+	buildTop()
 	buildBottom()
 	buildChoice()
 	buildRoster()

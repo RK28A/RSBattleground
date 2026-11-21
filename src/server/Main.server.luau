@@ -35,7 +35,7 @@ end
 local function buildTestArena()
 	local arena = Instance.new("Folder")
 	arena.Name = "TestArena"
-	block(arena, Vector3.new(320, 8, 320), CFrame.new(0, -4, 0), Color3.fromRGB(58, 60, 66), false)
+	block(arena, Vector3.new(320, 8, 320), CFrame.new(0, -4, 0), Color3.fromRGB(96, 98, 106), false)
 	block(arena, Vector3.new(160, 4, 160), CFrame.new(0, 2, 60 + 80), Color3.fromRGB(92, 94, 100), true)
 	block(arena, Vector3.new(32, 16, 4), CFrame.new(0, 8, -40), Color3.fromRGB(140, 132, 120), true)
 	block(arena, Vector3.new(4, 16, 32), CFrame.new(-36, 8, -24), Color3.fromRGB(140, 132, 120), true)

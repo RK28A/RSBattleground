@@ -5,6 +5,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Characters = require(ReplicatedStorage.Shared.Characters)
 local State = require(script.Parent.State)
 local Ragdoll = require(script.Parent.Ragdoll)
+local Weapons = require(script.Parent.Weapons)
 
 local BODY_PARTS = { "Head", "Torso", "LeftArm", "RightArm", "LeftLeg", "RightLeg" }
 local ACCESSORY_SLOTS = { "HatAccessory", "FaceAccessory", "NeckAccessory", "ShouldersAccessory", "FrontAccessory", "BackAccessory", "WaistAccessory" }
@@ -28,6 +29,16 @@ local function sanitize(description)
 	return description
 end
 
+local SKIN = { "HeadColor", "TorsoColor", "LeftArmColor", "RightArmColor", "LeftLegColor", "RightLegColor" }
+
+local function neutral()
+	local description = Instance.new("HumanoidDescription")
+	for _, property in SKIN do
+		description[property] = Color3.fromRGB(176, 174, 170)
+	end
+	return description
+end
+
 local function descriptionFor(player)
 	local cached = descriptions[player]
 	if cached then
@@ -37,7 +48,8 @@ local function descriptionFor(player)
 		return Players:GetHumanoidDescriptionFromUserId(player.UserId)
 	end)
 	if not ok or not description then
-		description = Instance.new("HumanoidDescription")
+		warn("Avatar: description introuvable pour " .. player.Name .. ", apparence par défaut")
+		description = neutral()
 	end
 	descriptions[player] = sanitize(description)
 	return descriptions[player]
@@ -57,7 +69,7 @@ local function strip(character)
 end
 
 local function randomSpawn()
-	return CFrame.new(math.random(-26, 26), 5, math.random(-26, 26))
+	return CFrame.new(math.random(-9, -1), 5, math.random(-8, 2))
 end
 
 function Avatar.prepare(character, onDied)
@@ -133,6 +145,7 @@ function Avatar.spawn(player)
 	if Config.TestArena then
 		character:PivotTo(randomSpawn())
 	end
+	Weapons.equip(character, Characters.get(player:GetAttribute("Character")))
 	Avatar.prepare(character, function()
 		task.delay(Config.RespawnTime, function()
 			if player.Parent == Players and player.Character == character then
@@ -144,7 +157,7 @@ end
 
 function Avatar.spawnDummy(index)
 	local ok, model = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R6)
+		return Players:CreateHumanoidModelFromDescription(neutral(), Enum.HumanoidRigType.R6)
 	end)
 	if not ok or not model then
 		return

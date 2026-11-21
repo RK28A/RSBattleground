@@ -301,7 +301,7 @@ local function swing(player, hint)
 	st.Token += 1
 	local token = st.Token
 	Combat.playAnim(character, clip, player)
-	Net.fireExcept(Net.Fx, player, "Swing", { Character = character, Heavy = variant ~= "Normal" })
+	Net.fireExcept(Net.Fx, player, "Swing", { Character = character, Heavy = variant ~= "Normal", Clip = clip })
 	State.refresh(character)
 	State.schedule(character, M1.Interval)
 

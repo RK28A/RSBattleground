@@ -18,9 +18,18 @@ Battlegrounds Roblox en R6.
 | 4e M1 en chute | Downslam |
 | F | Block |
 | Q (+ W/A/S/D) | Dash |
-| 1 2 3 4 | Skills |
+| 1 2 3 4 | Skills (maintenir 1 et 4 pour charger, viser à la souris) |
 | G | Ult |
-| M | Sélection du perso |
+
+## Tests
+
+`luau tests/almighty.spec.luau` : machine à états de The Almighty, probabilités d'esquive et de contre, résurrection.
+
+## Options de test (`src/shared/Config.luau`)
+
+- `TestArena`, `TestDummies` : zone de test et mannequins
+- `TestDummyAttack` : les mannequins frappent quand on est à portée
+- `TestUltFull` : ult pleine à chaque spawn
 
 ## Structure
 

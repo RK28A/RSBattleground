@@ -235,40 +235,107 @@ function Fx.Block(data)
 	sound(Config.Sounds.Block, position)
 end
 
+local ARCS = {
+	Blade1 = { Roll = -42, From = 80, To = -70 },
+	Blade2 = { Roll = 8, From = -85, To = 80 },
+	Blade3 = { Roll = -8, From = 85, To = -80 },
+	Blade4 = { Roll = 88, From = 95, To = -60 },
+	Heavy1 = { Roll = 6, From = 90, To = -90 },
+	Heavy2 = { Roll = -6, From = -90, To = 90 },
+	Heavy3 = { Roll = -60, From = -60, To = 90 },
+	Heavy4 = { Roll = 90, From = 100, To = -60 },
+	Uppercut = { Roll = 90, From = -70, To = 100 },
+	Downslam = { Roll = 90, From = 110, To = -70 },
+}
+
+local function slashArc(root, shape, color, heavy)
+	local radius = heavy and 6.4 or 5.4
+	local width = heavy and 2.2 or 1.5
+	local segments = 12
+	local base = root.CFrame * CFrame.new(0, 0.4, -0.6) * CFrame.Angles(0, 0, math.rad(shape.Roll))
+	local points = {}
+	for index = 0, segments do
+		local angle = math.rad(shape.From + (shape.To - shape.From) * index / segments)
+		points[index] = (base * CFrame.Angles(0, angle, 0)).LookVector
+	end
+	for index = 1, segments do
+		local t = (index - 0.5) / segments
+		local profile = math.sin(t * math.pi) ^ 0.7
+		local a, b = points[index - 1], points[index]
+		local middle = (a + b).Unit
+		local length = (b - a).Magnitude * radius * 1.12
+		for layer = 1, 2 do
+			local thick = width * profile * (layer == 1 and 1 or 0.4)
+			local position = base.Position + middle * (radius - thick * 0.5 * (layer == 1 and 1 or 0.2))
+			local cframe = CFrame.lookAt(position, position + (b - a), middle)
+			local part = neon(Vector3.new(0.06, math.max(thick, 0.05), length), cframe, layer == 1 and color or WHITE)
+			part.Transparency = 1
+			local delay = t * 0.05
+			task.delay(delay, function()
+				part.Transparency = layer == 1 and 0.25 or 0
+				tween(part, heavy and 0.26 or 0.2, {
+					CFrame = cframe + middle * (heavy and 1.8 or 1.1),
+					Size = Vector3.new(0.04, 0.03, length * 0.8),
+					Transparency = 1,
+				}, Enum.EasingStyle.Quart)
+			end)
+			Debris:AddItem(part, 0.45)
+		end
+	end
+end
+
 function Fx.Swing(data)
 	local character = data.Character
 	local arm = character and character:FindFirstChild("Right Arm")
-	if not arm then
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not arm or not root then
 		return
 	end
 	local color = accentOf(character)
-	local reach = data.Heavy and 4.6 or 3.8
-	local a0 = Instance.new("Attachment")
-	a0.Position = Vector3.new(0, -1, 0)
-	a0.Parent = arm
-	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -reach, 0)
-	a1.Parent = arm
+	local weapon = character:FindFirstChild("Weapon")
+	local blade = weapon and weapon:FindFirstChild("Blade")
+	local created = {}
+	local a0, a1 = blade and blade:FindFirstChild("TrailBase"), blade and blade:FindFirstChild("TrailTip")
+	if not a0 or not a1 then
+		local reach = data.Heavy and 4.6 or 3.8
+		a0 = Instance.new("Attachment")
+		a0.Position = Vector3.new(0, -1, 0)
+		a0.Parent = arm
+		a1 = Instance.new("Attachment")
+		a1.Position = Vector3.new(0, -reach, 0)
+		a1.Parent = arm
+		table.insert(created, a0)
+		table.insert(created, a1)
+	end
 	local trail = Instance.new("Trail")
 	trail.Attachment0 = a0
 	trail.Attachment1 = a1
-	trail.Lifetime = data.Heavy and 0.22 or 0.16
+	trail.Lifetime = data.Heavy and 0.24 or 0.17
 	trail.MinLength = 0
 	trail.LightEmission = 1
-	trail.FaceCamera = true
 	trail.Color = ColorSequence.new(WHITE, color)
 	trail.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0.05),
 		NumberSequenceKeypoint.new(0.6, 0.5),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	trail.WidthScale = NumberSequence.new(1, 0.2)
+	trail.WidthScale = NumberSequence.new(1, 0.15)
 	trail.Parent = arm
-	task.delay(0.24, function()
+	table.insert(created, trail)
+	task.delay(0.26, function()
 		trail.Enabled = false
 	end)
-	for _, instance in { a0, a1, trail } do
-		Debris:AddItem(instance, 0.6)
+	for _, instance in created do
+		Debris:AddItem(instance, 0.7)
+	end
+
+	local shape = data.Clip and ARCS[data.Clip]
+	if shape then
+		task.delay(Config.M1.Windup * 0.55, function()
+			if root.Parent then
+				slashArc(root, shape, color, data.Heavy)
+			end
+		end)
 	end
 	sound(Config.Sounds.Swing, arm.Position, 0.5)
 end
