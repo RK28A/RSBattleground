@@ -1,0 +1,69 @@
+return {
+	MaxHealth = 100,
+	WalkSpeed = 16,
+	JumpPower = 50,
+	BlockWalkSpeed = 5,
+	AttackWalkSpeed = 7,
+	RespawnTime = 3,
+	KeepHair = false,
+	TestArena = true,
+	TestDummies = 2,
+
+	M1 = {
+		Interval = 0.4,
+		Windup = 0.13,
+		ComboReset = 1.1,
+		ComboCooldown = 1.2,
+		Stun = 0.6,
+		Lunge = 16,
+		LungeTime = 0.1,
+		Size = Vector3.new(5.5, 5.5, 6.5),
+		Offset = 3,
+		FinisherRagdoll = 1.6,
+		FinisherKnockback = 48,
+		FinisherLift = 18,
+		UppercutLift = 46,
+		UppercutRagdoll = 1.3,
+		DownslamForce = 80,
+		DownslamRagdoll = 1.9,
+		DownslamCrater = 7,
+	},
+
+	Block = {
+		FrontDot = 0,
+		Pushback = 10,
+		GuardBreakStun = 1.4,
+	},
+
+	Dash = {
+		Speed = 64,
+		Duration = 0.22,
+		Cooldown = {
+			Front = 3,
+			Back = 3,
+			Left = 1.6,
+			Right = 1.6,
+		},
+	},
+
+	Ult = {
+		Max = 100,
+		PerHitDealt = 4,
+		PerHitTaken = 2.5,
+	},
+
+	Destruction = {
+		Voxel = 4,
+		MaxPieces = 140,
+		DebrisLife = 7,
+	},
+
+	Sounds = {
+		Swing = "",
+		Hit = "",
+		HeavyHit = "",
+		Block = "",
+		Dash = "",
+		Shatter = "",
+	},
+}
